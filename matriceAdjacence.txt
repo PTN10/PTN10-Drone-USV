@@ -1,0 +1,77 @@
+//////////////////////////////////MATRICE D'ADJACENCE/////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //Dans un premier temps, nous ne prenons pas en compte l'information Bouée. La connexion vaut 1 entre deux cases adjacentes (pas de diagonale ou d'extension des limites du tableau)
+    //Si il y a de la terre ou une construction, case innacessible--> poids à 0
+
+
+    //Création de la matrice
+    //La matrice est de dimensions nombre cases * nombre cases
+    //Il faut pouvoir déterminer si deux cases sont adjacentes à partir de leur id
+    //Une case n'est pas adjacente avec elle même
+
+    int adjacente(int id1, int id2,int nombreLignes)
+    {
+    int indiceLigne1 = getIndiceLigne(id1,nombreLignes);
+    int indiceColonne1 = getIndiceColonne(id1,nombreLignes);
+    int indiceLigne2 = getIndiceLigne(id2,nombreLignes);
+    int indiceColonne2 = getIndiceColonne(id2,nombreLignes);
+    //Adjacence verticale
+    if (indiceColonne1==indiceColonne2)
+        {
+        if (indiceLigne1==indiceLigne2)
+            {
+            return 0;
+            }
+        if (abs(indiceLigne1-indiceLigne2)==1)
+            {
+            return 1;
+            }
+        }
+    //Adjacence horizontale
+    if (indiceLigne1==indiceLigne2)
+        {
+        if (indiceColonne1==indiceColonne2)
+            {
+            return 0;
+            }
+        if (abs(indiceColonne1-indiceColonne2)==1)
+            {
+            return 1;
+            }
+        }
+    return 0;
+    }
+
+    int tailleAdjacence= (nombreLignes*nombreColonnes);
+    vector<vector<int>> matriceAdjacence(tailleAdjacence, vector<int>(tailleAdjacence, 0));
+    for (int i = 0; i < tailleAdjacence; ++i)
+        {
+        for (int j = 0; j<tailleAdjacence; ++j)
+            {
+            if (adjacente(i+1,j+1,nombreLignes)==1)
+                {
+                //Vérification de la non présence de constructions ou de terre sur l'une des deux cases
+                int indLignei=getIndiceLigne(i+1,nombreLignes);
+                int indColonnei=getIndiceColonne(i+1,nombreLignes);
+                int indLignej=getIndiceLigne(j+1,nombreLignes);
+                int indColonnej=getIndiceColonne(j+1,nombreLignes);
+
+                bool terrei=get<bool>(tableau[indLignei][indColonnei][5]);
+                bool constructioni=get<bool>(tableau[indLignei][indColonnei][6]);
+
+                bool terrej=get<bool>(tableau[indLignej][indColonnej][5]);
+                bool constructionj=get<bool>(tableau[indLignej][indColonnej][6]);
+
+                if (terrei!=true && constructioni!=true && terrej!=true && constructionj!=true)
+                    {
+                    matriceAdjacence[i][j]=1;
+                    }
+                }
+            }
+        }
+
+    if (intVisualisationAdjacence==1)
+        {
+        visualisationAdjacence(matriceAdjacence);
+        }
