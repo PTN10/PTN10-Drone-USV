@@ -19,4 +19,5 @@ Rassemble l'enssemble des codes précédents dans uns script unique.
 Permet de calculer le cap à prendre à parti d'une position instantanée jusqu'à un point cible.
 
 -exploitationGPS.txt
+Permet l'exploitation du capteur GPS.
 
