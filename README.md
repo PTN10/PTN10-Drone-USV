@@ -4,3 +4,14 @@ Pour plus d'informations, se référer au rapport écrit ou aux élèves ayant m
 
 Le code a été écrit en langage C++. 
 
+Il contient les scripts suivants:
+
+-matriceAdjacence.txt
+Contient le script permettant de constuire la matrice d'adjacence à partir de la carte sous forme compressée.
+
+-constructionMatrice.txt
+Contient l'algorythme permettant de construire la carte sous forme matricielle à partir de données sous la forme de fichiers CSV.
+
+-general.txt 
+Rassemble l'enssemble des codes précédents dans uns script unique.
+
