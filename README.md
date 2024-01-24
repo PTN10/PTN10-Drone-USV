@@ -15,3 +15,8 @@ Contient l'algorythme permettant de construire la carte sous forme matricielle �
 -general.txt 
 Rassemble l'enssemble des codes précédents dans uns script unique.
 
+-calculAzimute.txt
+Permet de calculer le cap à prendre à parti d'une position instantanée jusqu'à un point cible.
+
+-exploitationGPS.txt
+
