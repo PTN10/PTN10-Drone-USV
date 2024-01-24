@@ -1,0 +1,626 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <list>
+#include <variant>
+#include <utility>
+#include <cstdlib>
+#include <climits>
+#include <cmath>
+
+using namespace std;
+
+
+////Declaration variables
+string grilleFileName = R"(C:\Users\arnau\OneDrive\Bureau\Baille\PTN 10\PTN 10 Codeblox\200m test\Grille - 200m.csv)";
+string terreFileName = R"(C:\Users\arnau\OneDrive\Bureau\Baille\PTN 10\PTN 10 Codeblox\200m test\Grille - 200m - Terre.csv)";
+string constructionFileName = R"(C:\Users\arnau\OneDrive\Bureau\Baille\PTN 10\PTN 10 Codeblox\200m test\Grille - 200m - SLCONS.csv)";
+string boueeFileName = R"(C:\Users\arnau\OneDrive\Bureau\Baille\PTN 10\PTN 10 Codeblox\200m test\Grille - 200m - BOYCAR.csv)";
+string pointsPassageFileName = R"(C:\Users\arnau\OneDrive\Bureau\Baille\PTN 10\PTN 10 Codeblox\200m test\pointsPassage.csv)";
+int nombreLignes, nombreColonnes, indiceLigne, indiceColonne;
+string ligne;
+string valeur;
+int indiceLignePassage, indiceColonnePassage;
+string stringTampon;
+int intTampon;
+int tailleAdjacence;
+int intVisualisationTableau, intVisualisationAdjacence, source, cible;
+vector<int> noeudsPassage;
+
+// Définir M_PI si ce n'est pas déjà défini
+#ifndef M_PI
+#define M_PI 3.141592653589793238462643383279502884L
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//FONCTIONS DJIKSTRA//
+const int INF = INT_MAX;  // Valeur infinie pour représenter l'absence de connexion
+
+int trouverNoeudMinDistance(const vector<int>& distance, const vector<bool>& traite, int nombreNoeuds) {
+    int minDistance = INF;
+    int minIndex = -1;
+
+    for (int i = 0; i < nombreNoeuds; ++i) {
+        if (!traite[i] && distance[i] <= minDistance) {
+            minDistance = distance[i];
+            minIndex = i;
+        }
+    }
+
+    return minIndex;
+}
+
+vector<int> dijkstra(const vector<vector<int>>& graphe, int source, int cible, int nombreNoeuds) {
+    vector<int> distance(nombreNoeuds, INF);
+    vector<bool> traite(nombreNoeuds, false);
+    vector<int> predecesseur(nombreNoeuds, -1);
+
+    distance[source - 1] = 0;  // Ajuster la source pour la numérotation à partir de 1
+
+    for (int i = 0; i < nombreNoeuds - 1; ++i) {
+        int u = trouverNoeudMinDistance(distance, traite, nombreNoeuds);
+        traite[u] = true;
+
+        for (int v = 0; v < nombreNoeuds; ++v) {
+            if (!traite[v] && graphe[u][v] && distance[u] != INF && distance[u] + graphe[u][v] < distance[v]) {
+                distance[v] = distance[u] + graphe[u][v];
+                predecesseur[v] = u;
+            }
+        }
+    }
+    vector<int> chemin;
+    if (predecesseur[cible] == -1)
+        {
+        cout << "Pas de chemin possible." << endl;
+        return chemin;
+        }
+
+    for (int noeud = cible-1; noeud != -1; noeud = predecesseur[noeud])
+        {
+        chemin.push_back(noeud + 1);  // Ajouter 1 pour ajuster la numérotation à partir de 1
+        }
+    return chemin;
+    }
+
+
+//FIN FONCTIONS DJIKSTRA
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+
+//Mef: indexation des lignes et des colonnes commence à 0 )
+//Mef: le tableau est transposé
+int getIndiceLigneTranspose(int id, int nbColonnes)
+    {
+    //Cette fonction renvoie l'indice de ligne d'une case à partir de son identifiant
+    id=id-1; //Nécessaire car la case 1 est en (0,0)
+    int indiceLigne;
+    indiceLigne=id/nbColonnes;
+    return indiceLigne;
+    };
+
+int getIndiceColonneTranspose(int id,int nbColonnes)
+    {//Cette fonction renvoie l'indice de colonne d'une case à partir de son identifiant
+    id=id-1; //Nécessaire car la case 1 est en (0,0)
+    int indiceColonne;
+    indiceColonne=id%nbColonnes;
+    return indiceColonne;
+    };
+
+int getIndiceLigne(int id, int nbLignes)
+    {
+    return getIndiceColonneTranspose(id, nbLignes);
+    }
+
+int getIndiceColonne(int id, int nbLignes)
+    {
+    return getIndiceLigneTranspose(id, nbLignes);
+    }
+
+///////////////////////////////////////////////////////////////
+////Fonctions exploitation chemin et Cap///////////
+
+////Fonctions de changement de reférentiels de coordonnées///////////////
+
+vector<double> centreNoeud(int id, vector<vector<vector<variant<int, bool, double, string>>>> tableau,int nombreLignes)
+    {
+    vector<int> coords;
+    int indLigne=getIndiceLigne(id,nombreLignes);
+    int indColonne=getIndiceColonne(id,nombreLignes);
+    double longHautGauche=stod(get<string>(tableau[indLigne][indColonne][1]));
+    double latHautGauche=stod(get<string>(tableau[indLigne][indColonne][2]));
+    double longBasDroite=stod(get<string>(tableau[indLigne][indColonne][3]));
+    double latBasDroite=stod(get<string>(tableau[indLigne][indColonne][4]));
+
+    double moyLong=((longHautGauche+longBasDroite)/2);
+    double moyLat=((latHautGauche+latBasDroite)/2);
+
+    coords.push_back(moyLong);
+    coords.push_back(moyLat);
+    }
+
+struct Lambert93 {
+    double x;
+    double y;
+};
+
+struct LongitudeLatitude {
+    double longitude;
+    double latitude;
+};
+
+LongitudeLatitude convertLambert93ToLongitudeLatitude(const Lambert93& lambert93) {
+    // Paramètres de la projection Lambert 93
+    const double n = 0.725607765053267;
+    const double c = 11754255.426096;
+    const double xs = 700000.0;
+    const double ys = 12655612.049876;
+
+    // Formules de conversion
+    double lon_rad = (lambert93.x - xs) / (n * c);
+    double lat_rad = (lambert93.y - ys) / (-n * c);
+
+    // Convertir en degrés
+    double lon_deg = lon_rad * (180.0 / M_PI);
+    double lat_deg = lat_rad * (180.0 / M_PI);
+
+    return {lon_deg, lat_deg};
+}
+
+vector<LongitudeLatitude> coordsCheminGPS(vector<vector<double>> coordsChemin)
+    {
+    vector<LongitudeLatitude> coordsCheminGPS;
+    for (int i =0; i<coordsChemin.size();i++)
+        {
+        Lambert93 coordsLambert93 = {coordsChemin[i][0], coordsChemin[i][1]};
+        LongitudeLatitude lon_lat = convertLambert93ToLongitudeLatitude(coordsLambert93);
+        coordsCheminGPS.push_back(lon_lat);
+        }
+    return coordsCheminGPS;
+    }
+
+//////////////////////////////////////////////////////////////////
+/////Fonctions de calcul de cap/////
+
+double calculateAzimuth(LongitudeLatitude coordsReellesGPS,LongitudeLatitude coordsCibleGPS) {
+    double lat1 = coordsReellesGPS.latitude * M_PI / 180.0;
+    double lon1 = coordsReellesGPS.longitude * M_PI / 180.0;
+    double lat2 = coordsCibleGPS.latitude * M_PI / 180.0;
+    double lon2 = coordsCibleGPS.longitude * M_PI / 180.0;
+
+    double dLon = lon2 - lon1;
+
+    double x = sin(dLon) * cos(lat2);
+    double y = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
+
+    double azimuth = atan2(x, y);
+    azimuth = (azimuth * 180.0 / M_PI + 360.0); // Convertir en degrés et ajuster pour obtenir une valeur entre 0 et 360
+    azimuth = fmod(azimuth, 360.0); // Assurer que la valeur est entre 0 et 360
+
+    return azimuth;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////:::
+////////////////////////Fonctions visualisation, transposition et adjacence///////////////////////////////////////////////
+
+//Fonction de visualisation matrice données
+void visualisationTableau(const std::vector<std::vector<std::vector<std::variant<int, bool, double, std::string>>>>& tableau,int nombreLignes)
+    {
+    for (size_t i = 0; i<tableau.size(); ++i)
+        {
+        for (size_t j = 0; j<tableau[i].size(); ++j)
+            {
+            for (const auto& item : tableau[i][j])
+                {
+                if (std::holds_alternative<int>(item))
+                    {
+                    int intValue = std::get<int>(item);
+                    std::cout << intValue<<' ';
+                    }
+                else if (std::holds_alternative<bool>(item))
+                    {
+                    bool boolValue = std::get<bool>(item);
+                    std::cout << boolValue<<' ';
+                    }
+                else if (std::holds_alternative<double>(item))
+                    {
+                    double doubleValue = std::get<double>(item);
+                    std::cout << doubleValue<<' ';
+                    }
+                else if (std::holds_alternative<std::string>(item))
+                    {
+                    std::string stringValue = std::get<std::string>(item);
+                    std::cout << stringValue<<' ';
+                    }
+                }
+            int id =get<int>(tableau[i][j][0]);
+            cout<<" ligne: "<<getIndiceLigne(id,nombreLignes)<<" colonne: "<<getIndiceColonne(id,nombreLignes)<<endl;
+            }
+        }
+    }
+
+// Fonction de transposition
+const vector<vector<vector<variant<int, bool, double, string>>>> transpose(const vector<vector<vector<variant<int, bool, double, string>>>>& original)
+    {
+    if (original.empty() || original[0].empty())
+        {
+        return {}; // Retourner un tableau vide si l'original est vide
+        }
+
+    int n = original.size();      // Taille de la première dimension
+    int m = original[0].size();   // Taille de la deuxième dimension
+    int l = original[0][0].size();// Taille de la troisième dimension
+
+    vector<vector<vector<variant<int, bool, double, string>>>> tableauTranspose(m, vector<vector<variant<int, bool, double, string>>>(n, vector<variant<int, bool, double, string>>(l)));
+
+    for (size_t i = 0; i < n; ++i)
+        {
+        for (size_t j = 0; j < m; ++j)
+            {
+            for (int k = 0; k < l; ++k)
+                {
+                tableauTranspose[j][i][k] = original[i][j][k];
+                }
+            }
+        }
+
+    return tableauTranspose;
+    }
+
+int adjacente(int id1, int id2,int nombreLignes)
+    {
+    int indiceLigne1 = getIndiceLigne(id1,nombreLignes);
+    int indiceColonne1 = getIndiceColonne(id1,nombreLignes);
+    int indiceLigne2 = getIndiceLigne(id2,nombreLignes);
+    int indiceColonne2 = getIndiceColonne(id2,nombreLignes);
+    //Adjacence verticale
+    if (indiceColonne1==indiceColonne2)
+        {
+        if (indiceLigne1==indiceLigne2)
+            {
+            return 0;
+            }
+        if (abs(indiceLigne1-indiceLigne2)==1)
+            {
+            return 1;
+            }
+        }
+    //Adjacence horizontale
+    if (indiceLigne1==indiceLigne2)
+        {
+        if (indiceColonne1==indiceColonne2)
+            {
+            return 0;
+            }
+        if (abs(indiceColonne1-indiceColonne2)==1)
+            {
+            return 1;
+            }
+        }
+    return 0;
+    }
+
+
+
+//Fonction de visualisation de la matrice d'adjacence
+void visualisationAdjacence(vector<vector<int>> matriceAdjacence)
+    {
+    cout<<endl;
+    for (size_t i = 0; i < matriceAdjacence.size(); ++i)
+        {
+        cout<<endl<<endl<<i+1<<endl;
+        for (size_t j = 0; j<matriceAdjacence[i].size(); ++j)
+            {
+            cout<<"  "<<j+1<<" "<<matriceAdjacence[i][j]<<" ";
+            }
+        cout<<endl;
+        }
+    cout<<endl;
+    }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////MAIN/////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+
+int main()
+    {
+    cout << "Entrez le nombre de lignes : ";
+    cin >> nombreLignes;
+
+    cout << "Entrez le nombre de colonnes : ";
+    cin >> nombreColonnes;
+
+    //On construit le tableau " a l'envers" pour ensuite le transposer, d'où une inversion des valeurs de lignes et de colonnes
+    intTampon=nombreLignes;
+    nombreLignes=nombreColonnes;
+    nombreColonnes=intTampon;
+    cout << "Entrez le nombre de points de passage : ";
+    cin >> intVisualisationAdjacence;
+
+        cout << "Identifiant de case du point de passage 1 : ";
+    cin >> intVisualisationAdjacence;
+
+        cout << "Identifiant de case du point de passage 2 : ";
+    cin >> intVisualisationAdjacence;
+
+        cout << "Identifiant de case du point de passage 3 ";
+    cin >> intVisualisationAdjacence;
+
+    cout << "Visualisation tableau? (0/1): ";
+    cin >> intVisualisationTableau;
+
+    cout << "Visualisation matrice d'adjacence? (0/1): ";
+    cin >> intVisualisationAdjacence;
+
+    cout << "Noeud source (1-208): ";
+    cin >> source;
+
+    cout << "Noeud cible (1-208): ";
+    cin >> cible;
+
+
+
+
+    //Ouverture des fichiers
+    ifstream fichierGrille(grilleFileName);
+    if (!fichierGrille.is_open())
+        {
+        cerr << "Impossible d'ouvrir le fichier Grille - 200m.csv" << endl;
+        return 1;
+        }
+
+    ifstream fichierTerre(terreFileName);
+    if (!fichierTerre.is_open())
+        {
+        cerr << "Impossible d'ouvrir le fichier Grille - 200m - Terre.csv" << endl;
+        return 1;
+        }
+
+    ifstream fichierConstruction(constructionFileName);
+    if (!fichierConstruction.is_open())
+        {
+        cerr << "Impossible d'ouvrir le fichier Grille - 200m - SLCONS.csv" << endl;
+        return 1;
+        }
+
+    ifstream fichierBouee(boueeFileName);
+    if (!fichierBouee.is_open())
+        {
+        cerr << "Impossible d'ouvrir le fichier Grille - 200m - BOYCAR.csv" << endl;
+        return 1;
+        }
+
+    ifstream fichierPointsPassage(pointsPassageFileName);
+    if (!fichierPointsPassage.is_open())
+        {
+        cerr << "Impossible d'ouvrir le fichier points de passage" << endl;
+        return 1;
+        }
+
+    //Avance d'une ligne pour ne pas voir la description
+    getline(fichierGrille, ligne);
+    getline(fichierTerre, ligne);
+    getline(fichierConstruction, ligne);
+    getline(fichierBouee, ligne);
+
+    // Création d'un tableau représentant la grille
+    vector<vector<vector<variant<int, bool, double, string>>>> tableau;
+
+    //Création de la première ligne
+    tableau.push_back(std::vector<std::vector<std::variant<int, bool, double, std::string>>>());
+
+    //Création de la première case de la première ligne
+    tableau[0].push_back(std::vector<std::variant<int, bool, double, std::string>>());
+
+    indiceLigne=0;
+    indiceColonne=0;
+
+    //Insertion des données dans la case
+
+    // Insertion des données de fichier grille, c'est à dire l'id et les coordonnées de chaque case
+    while (getline(fichierGrille, ligne))
+        {
+        istringstream streamLigne(ligne);
+
+        while (getline(streamLigne, valeur, ','))
+            {
+            //Ecriture de l'id et des coords de la case
+            tableau[indiceLigne][indiceColonne].push_back(valeur);
+            }
+
+            //Modification de l'identifiant de string à int
+
+            stringTampon=std::get<std::string>(tableau[indiceLigne][indiceColonne][0]);
+            stringTampon = stringTampon.substr(1, stringTampon.length() - 2);
+            intTampon=stoi(stringTampon);
+            tableau[indiceLigne][indiceColonne][0]=intTampon;
+
+            //Cas de fin de ligne
+            if (indiceColonne==nombreColonnes-1)
+                {
+                //Méf, si c'est la dernière ligne du fichier, il ne faut pas recréer de ligne
+                //Sinon, création de la prochaine case
+                if (indiceLigne!=nombreLignes-1)
+                    {
+                    //Ajout d'une ligne
+                    tableau.push_back(std::vector<std::vector<std::variant<int, bool, double, std::string>>>());
+                    //Changement de l'indice
+                    indiceLignePassage=indiceLigne+1;
+
+                    //Création première case
+                    tableau[indiceLignePassage].push_back(std::vector<std::variant<int, bool, double, std::string>>());
+
+                    //Changement de l'indice
+                    indiceColonnePassage=0;
+                    }
+                }
+            //Si la ligne n'est pas complète, il suffit de rajouter une case
+            else
+                {
+                indiceColonnePassage=indiceColonne+1;
+                //Création de la prochaine case
+                tableau[indiceLigne].push_back(std::vector<std::variant<int, bool, double, std::string>>());
+                }
+
+            //Ajout de l'information 'présence de terre' initialisée à FALSE (valeur numérique 0)
+            tableau[indiceLigne][indiceColonne].push_back(false);
+
+            //Ajout de l'information'présence construction' initialisée à FALSE (valeur numérique 0)
+            tableau[indiceLigne][indiceColonne].push_back(false);
+
+            //Ajout de l'information'présence bouée' initialisée à FALSE (valeur numérique 0)
+            tableau[indiceLigne][indiceColonne].push_back(false);
+
+            //Ajout de l'information sur le type de bouée, de type entier initialisée à 0.
+            tableau[indiceLigne][indiceColonne].push_back(0);
+
+        indiceLigne=indiceLignePassage;
+        indiceColonne=indiceColonnePassage;
+        }
+
+    //Modification du booléen présence Terre a sa vraie valeur
+    while (getline(fichierTerre, ligne))
+        {
+        istringstream streamLigne(ligne);
+        getline(streamLigne, stringTampon, ',');
+        intTampon=stoi(stringTampon);   //stockage de l'id de la case d'intérêt
+        indiceLigne=getIndiceLigneTranspose(intTampon, nombreColonnes);
+        indiceColonne=getIndiceColonneTranspose(intTampon,nombreColonnes);
+        tableau[indiceLigne][indiceColonne][5]=true;
+        }
+
+    //Modification du booléen présence construction a sa vraie valeur
+
+    while (getline(fichierConstruction, ligne))
+        {
+        istringstream streamLigne(ligne);
+        getline(streamLigne, stringTampon, ',');
+        intTampon=stoi(stringTampon);   //stockage de l'id de la case d'intérêt
+        indiceLigne=getIndiceLigneTranspose(intTampon, nombreColonnes);
+        indiceColonne=getIndiceColonneTranspose(intTampon,nombreColonnes);
+        tableau[indiceLigne][indiceColonne][6]=true;
+        }
+
+    //Modification du booléen présence bouée a sa vraie valeur
+    //Modification simultanément de l'entier 'catégorie de bouée' à sa vraie valeur "CATCAR"
+
+    while (getline(fichierBouee, ligne))
+        {
+        //modification présence bouée
+        istringstream streamLigne(ligne);
+        getline(streamLigne, stringTampon, ',');
+        intTampon=stoi(stringTampon);   //stockage de l'id de la case d'intérêt
+        indiceLigne=getIndiceLigneTranspose(intTampon, nombreColonnes);
+        indiceColonne=getIndiceColonneTranspose(intTampon,nombreColonnes);
+        tableau[indiceLigne][indiceColonne][7]=true;
+
+        //modification catégorie de bouée
+        //avance de la la ligne jusqu'à la case voulue
+        getline(streamLigne, stringTampon, ',');
+        getline(streamLigne, stringTampon, ',');
+        getline(streamLigne, stringTampon, ',');
+        getline(streamLigne, stringTampon, ',');
+        getline(streamLigne, stringTampon, ',');
+        stringTampon = stringTampon.substr(1, stringTampon.length() - 2);
+        intTampon=stoi(stringTampon);
+        tableau[indiceLigne][indiceColonne][8]=intTampon;
+
+        }
+    while (getline(fichierPointsPassage, ligne))
+        {
+        istringstream streamLigne(ligne);
+        intTampon=stoi(ligne);
+        noeudsPassage.push_back(intTampon);
+        }
+
+
+    fichierGrille.close();
+    fichierTerre.close();
+    fichierConstruction.close();
+    fichierBouee.close();
+    fichierPointsPassage.close();
+    tableau=transpose(tableau);
+    intTampon=nombreLignes;
+    nombreLignes=nombreColonnes;
+    nombreColonnes=intTampon;
+
+    if (intVisualisationTableau==1)
+        {
+        visualisationTableau(tableau,nombreLignes);
+        }
+
+
+    //////////////////////////////////MATRICE D'ADJACENCE/////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //Dans un premier temps, nous ne prenons pas en compte l'information Bouée. La connexion vaut 1 entre deux cases adjacentes (pas de diagonale ou d'extension des limites du tableau)
+    //Si il y a de la terre ou une construction, case innacessible--> poids à 0
+
+
+    //Création de la matrice
+    //La matrice est de dimensions nombre cases * nombre cases
+    //Il faut pouvoir déterminer si deux cases sont adjacentes à partir de leur id
+    //Une case n'est pas adjacente avec elle même
+
+    int tailleAdjacence= (nombreLignes*nombreColonnes);
+    vector<vector<int>> matriceAdjacence(tailleAdjacence, vector<int>(tailleAdjacence, 0));
+    for (int i = 0; i < tailleAdjacence; ++i)
+        {
+        for (int j = 0; j<tailleAdjacence; ++j)
+            {
+            if (adjacente(i+1,j+1,nombreLignes)==1)
+                {
+                //Vérification de la non présence de constructions ou de terre sur l'une des deux cases
+                int indLignei=getIndiceLigne(i+1,nombreLignes);
+                int indColonnei=getIndiceColonne(i+1,nombreLignes);
+                int indLignej=getIndiceLigne(j+1,nombreLignes);
+                int indColonnej=getIndiceColonne(j+1,nombreLignes);
+
+                bool terrei=get<bool>(tableau[indLignei][indColonnei][5]);
+                bool constructioni=get<bool>(tableau[indLignei][indColonnei][6]);
+
+                bool terrej=get<bool>(tableau[indLignej][indColonnej][5]);
+                bool constructionj=get<bool>(tableau[indLignej][indColonnej][6]);
+
+                if (terrei!=true && constructioni!=true && terrej!=true && constructionj!=true)
+                    {
+                    matriceAdjacence[i][j]=1;
+                    }
+                }
+            }
+        }
+
+    if (intVisualisationAdjacence==1)
+        {
+        visualisationAdjacence(matriceAdjacence);
+        }
+
+    //////////////////////////////////ALGORITHME DJIKSTRA/////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    vector<int> chemin=dijkstra(matriceAdjacence, source, cible, tailleAdjacence);
+
+    //Transpose les numéros de noeuds en couple de coordonnées correspondant au centre de chaque case
+    vector<vector<double>> coordsChemin;
+    for (int i = 0; i < chemin.size(); ++i)
+        {
+        coordsChemin.push_back(centreNoeud(chemin[i],tableau, nombreLignes));
+        }
+
+    coordsCheminGPS(coordsChemin);
+
+    return 0;
+    }
+
+
+
+////Nous disposons maintenant d'une liste coordsChemin contenant les coordonnées des points de passage. A présen, il faut s'assurer que le drone passe par ses points.
+//Tout d'abord, il faut que le drone se dirige vers ces points, donc il faut déterminer le cap à prendre par le drone en fonction de sa position et du point visé
+//Méf au système de coordonnées utilisé, d'ou la conversion en GPS
+//Puis il faut délimiter une pastille autour du centre de la case validant le passage.
+//on choisit comme diamètre 1/3 de la largeur de la case
+
+//RQ: pas de prise en compte des bouées dans le script actuel
