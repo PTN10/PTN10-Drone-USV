@@ -1,0 +1,44 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <list>
+#include <variant>
+#include <utility>
+#include <cstdlib>
+#include <climits>
+#include <cmath>
+
+
+// Définir M_PI si ce n'est pas déjà défini
+#ifndef M_PI
+#define M_PI 3.141592653589793238462643383279502884L
+#endif
+
+struct LongitudeLatitude {
+    double longitude;
+    double latitude;
+};
+
+//////////////////////////////////////////////////////////////////
+/////Fonctions de calcul de cap/////
+
+double calculeAzimute(LongitudeLatitude coordsReellesGPS, LongitudeLatitude coordsCibleGPS)
+    {
+    double lat1 = current.latitude * M_PI / 180.0;
+    double lon1 = current.longitude * M_PI / 180.0;
+    double lat2 = target.latitude * M_PI / 180.0;
+    double lon2 = target.longitude * M_PI / 180.0;
+
+    double dLon = lon2 - lon1;
+
+    double x = sin(dLon) * cos(lat2);
+    double y = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
+
+    double azimuth = atan2(x, y);
+    azimuth = (azimuth * 180.0 / M_PI + 360.0); // Convertir en degrés et ajuster pour obtenir une valeur entre 0 et 360
+    azimuth = fmod(azimuth, 360.0); // Assurer que la valeur est entre 0 et 360
+
+    return azimute;
+    }
